@@ -1,6 +1,6 @@
 name: "campseeker"
 acli_version: "1.13.0"
-agent_directory: "app"
+agent_directory: "campseeker"
 region: 'us-east1'
 base_template: "adk_python"
 generated_at: "2026-11-09T19:45:06.017592+00:00"

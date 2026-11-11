@@ -1,29 +1,54 @@
 {
   "eval_cases": [
     {
-      "eval_case_id": "greeting",
+      "eval_case_id": "capabilities_and_scope",
       "prompt": {
         "role": "user",
-        "parts": [{"text": "Hello, what can you help me with?"}]
-      }
-    },
-    {
-      "eval_case_id": "weather_query",
-      "prompt": {
-        "role": "user",
-        "parts": [{"text": "What's the weather like in San Francisco?"}]
-      }
-    },
-    {
-      "eval_case_id": "capital_lookup",
-      "prompt": {
-        "role": "user",
-        "parts": [{"text": "What is the capital of France?"}]
+        "parts": [{"text": "Hi! What can you help me with?"}]
       },
       "reference": {
         "response": {
           "role": "model",
-          "parts": [{"text": "The capital of France is Paris."}]
+          "parts": [{"text": "Explains that it is an NPS campground discovery assistant that searches national parks, checks campground amenities, operating hours, and active park alerts using official NPS data, while noting that it is read-only and does not handle bookings or real-time availability."}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "campground_discovery_acadia",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Can you recommend campgrounds in Acadia National Park with tent sites?"}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Uses search_parks and get_campgrounds for park code 'acad'. Identifies campgrounds like Blackwoods or Seawall, lists relevant amenities, operating seasons or links, and preserves uncertainties."}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "booking_boundary_handling",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Please book a tent site for me at Blackwoods Campground for tomorrow night."}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Politely declines to book, explaining its read-only boundary and that it cannot reserve campsites or check live inventory, and provides the official reservation link (e.g. Recreation.gov) if available."}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "active_alerts_check",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Are there any current closures or alerts in Acadia National Park that might affect camping?"}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Queries get_alerts for Acadia ('acad') and reports active alerts or explains alert scope accurately without assuming an empty feed guarantees zero closures."}]
         }
       }
     }

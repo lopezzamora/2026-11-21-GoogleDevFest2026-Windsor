@@ -22,8 +22,8 @@ from fastapi import FastAPI
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 
-from app.app_utils import services
-from app.app_utils.a2a import attach_a2a_routes
+from campseeker.app_utils import services
+from campseeker.app_utils.a2a import attach_a2a_routes
 
 load_dotenv()
 allow_origins = (
@@ -36,8 +36,8 @@ AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    from app.agent import app as adk_app
-    from app.agent import root_agent
+    from campseeker.agent import app as adk_app
+    from campseeker.agent import root_agent
 
     runner = Runner(
         app=adk_app,
