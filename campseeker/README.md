@@ -78,7 +78,7 @@ campseeker/
 - **[agents-cli](https://cloud.google.com/products/agent-builder)**: Google Agents CLI (`uv tool install google-agents-cli`)
 - **[NPS API Key](https://www.nps.gov/subjects/developer/get-started.htm)**: Free instant API key from the National Park Service
 - **Gemini Platform Credentials**:
-  - Google Cloud project with Vertex AI / Gemini Enterprise enabled (with [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)), **or**
+  - Google Cloud project with Gemini Enterprise enabled (with [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)), **or**
   - A [Google AI Studio API Key](https://aistudio.google.com/) (`GEMINI_API_KEY`)
 
 ---
@@ -111,7 +111,7 @@ Edit `.env`:
 
 ```dotenv
 # --- Gemini Configuration ---
-# Option A: Gemini Platform / Vertex AI (default)
+# Option A: Gemini Enterprise Agent Platform (default)
 GOOGLE_GENAI_USE_ENTERPRISE=true
 GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 GOOGLE_CLOUD_LOCATION=global
@@ -194,26 +194,199 @@ uv run pytest tests/integration
 
 ### Agent Evaluation (LLM-as-Judge)
 
-CampSeeker includes custom evaluation datasets and an LLM-as-judge quality metric in [`tests/eval/`](tests/eval/):
+CampSeeker includes custom evaluation datasets and automated LLM-as-judge quality metrics in [`tests/eval/`](tests/eval/) to evaluate grounding, constraints, and read-only boundaries.
+
+#### 1. Prerequisites for Running Evals
+
+1. **Install or update `agents-cli` (v1.15.0+)**:
+   ```bash
+   uv tool install google-agents-cli
+   # or upgrade if already installed:
+   uv tool upgrade google-agents-cli
+   ```
+2. **Project dependencies**:
+   ```bash
+   uv sync
+   ```
+3. **Environment setup (`.env`)**:
+   Ensure `.env` contains your NPS API key and Gemini model credentials (either GCP project with ADC or `GEMINI_API_KEY`):
+   ```dotenv
+   GOOGLE_GENAI_USE_ENTERPRISE=true
+   GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+   GOOGLE_CLOUD_LOCATION=global
+   GEMINI_MODEL=gemini-2.5-flash
+   NPS_API_KEY=your-nps-api-key
+   ```
+
+#### 2. Run the Evaluation Suite
+
+Run the full evaluation workflow (inferencing all test cases + LLM-as-judge grading):
 
 ```bash
-# View evaluation commands
-agents-cli eval --help
-
-# Run evaluations against the test dataset
 agents-cli eval run
 ```
 
-- **Evaluation Cases** ([`basic-dataset.json`](tests/eval/datasets/basic-dataset.json)):
-  - `trip_constraint_maine_acadia_showers`: Tests progressive narrowing (Maine ➔ Acadia) and strict shower constraint verification.
-  - `grounding_amenity_present`: Tests discovery and verification of present amenities (flush toilets, dump stations) from official NPS data.
-  - `grounding_amenity_missing`: Verifies that unlisted/missing attributes (e.g. Wi-Fi, satellite TV) are preserved as uncertainty rather than assumed.
-  - `grounding_no_supported_match`: Verifies the agent honestly reports when no campgrounds match impossible requirements, refusing to pad recommendations.
-  - `grounding_availability_asked`: Verifies that direct reservation/availability requests are declined and redirected to official links.
-  - `active_alerts_check`: Tests surfacing active park advisories and closure scopes without false all-clear claims.
-- **Evaluation Metrics** ([`eval_config.yaml`](tests/eval/eval_config.yaml)):
-  - **`valid_trip_plan_rate`** ([`valid_trip_plan_rate.py`](tests/eval/valid_trip_plan_rate.py)): Binary pass/fail metric (Slide 9) evaluating whether the agent (a) honors every user constraint and (b) makes zero unsupported claims, aiming for a 100% target across curated cases.
-  - **`custom_response_quality`** ([`response_quality.py`](tests/eval/response_quality.py)): LLM-as-judge scoring on a 1–5 scale based on NPS evidence grounding, read-only boundary compliance, uncertainty preservation, and absence of hallucinated URLs.
+What happens under the hood:
+1. **Inference Phase (`eval generate`)**:
+   - Automatically boots a local ADK FastAPI server on a loopback port (e.g. `http://127.0.0.1:18080`) under `app_name=campseeker`.
+   - Sends each prompt from [`tests/eval/datasets/basic-dataset.json`](tests/eval/datasets/basic-dataset.json) to the agent over `/run_sse`.
+   - Records all streamed agent messages and NPS tool-execution traces to `artifacts/traces/traces_<timestamp>.json`.
+2. **Grading Phase (`eval grade`)**:
+   - Evaluates the traces against the judge rubrics in [`tests/eval/eval_config.yaml`](tests/eval/eval_config.yaml).
+   - Generates score summaries in the terminal, a structured JSON file, and an interactive HTML report.
+
+#### 3. Inspecting Evaluation Results
+
+After `eval run` completes, open the interactive HTML report in your browser to inspect turn-by-turn tool calls, agent responses, and judge rationales:
+
+```bash
+# Open the latest HTML report (macOS)
+open $(ls -t artifacts/grade_results/results_*.html | head -n 1)
+
+# Or on Linux:
+# xdg-open $(ls -t artifacts/grade_results/results_*.html | head -n 1)
+```
+
+The report details:
+- **Case-by-case breakdown**: Each test scenario, prompt, tool execution trajectory, and final answer.
+- **Judge rationales**: Explanations for why each score was awarded.
+- **Metrics summary**:
+  - **`valid_trip_plan_rate`** ([`valid_trip_plan_rate.py`](tests/eval/valid_trip_plan_rate.py)): Binary pass/fail metric (Slide 9) verifying that the agent (a) honors all user constraints and (b) makes zero unsupported claims, targeting 100% across core cases.
+  - **`custom_response_quality`** ([`response_quality.py`](tests/eval/response_quality.py)): 1–5 rubric judging evidence grounding in NPS data, read-only boundary compliance, uncertainty preservation, and absence of fabricated links.
+
+#### 4. Advanced Evaluation Commands
+
+- **Run inference only** (saves traces without grading):
+  ```bash
+  agents-cli eval generate
+  ```
+- **Re-grade existing traces** (offline without re-running the agent):
+  ```bash
+  agents-cli eval grade --traces artifacts/traces/traces_<timestamp>.json
+  ```
+- **Compare two evaluation runs** (verify improvements or detect regressions after prompt fixes):
+  ```bash
+  agents-cli eval compare artifacts/grade_results/results_run1.json artifacts/grade_results/results_run2.json
+  ```
+
+#### 5. Evaluation Dataset Coverage ([`basic-dataset.json`](tests/eval/datasets/basic-dataset.json))
+
+The evaluation dataset codifies the presentation benchmark cases (DevFest Slides 9–10):
+- `trip_constraint_maine_acadia_showers`: Progressive constraint narrowing (Maine ➔ Acadia) with strict verification of campground-level showers.
+- `grounding_amenity_present`: Verification of verified facilities (flush toilets, dump stations) sourced directly from NPS API attributes.
+- `grounding_amenity_missing`: Preserving unlisted attributes (e.g. Wi-Fi, satellite TV) as unknown/unverified rather than assuming.
+- `grounding_no_supported_match`: Refusing to pad or invent options when requirements cannot be met by any campground.
+- `grounding_availability_asked`: Enforcing read-only boundaries on booking requests and redirecting to official `reservationUrl`s.
+- `active_alerts_check`: Surfacing park advisories without making false park-wide "all-clear" safety guarantees.
+
+---
+
+### 🚀 Pre-Deployment vs. Post-Deployment Evaluation
+
+In production agent engineering, evaluation is not a one-time check. You evaluate both **before** and **after** deployment:
+
+```mermaid
+flowchart LR
+    subgraph Pre["Pre-Deployment (Local Inner Loop)"]
+        L1["Edit Agent Instructions / Tools"] --> L2["agents-cli eval run (Local ADK Server)"]
+        L2 --> L3{"Pass 100% Target?"}
+        L3 -- No --> L1
+    end
+    subgraph Deploy["Deployment Phase"]
+        L3 -- Yes --> D1["agents-cli deploy (Gemini Enterprise Agent Runtime)"]
+    end
+    subgraph Post["Post-Deployment (Cloud Verification)"]
+        D1 --> P1["Cloud Evaluation (agents-cli eval submit)"]
+        P1 --> P2["Cloud Console Inspection (Traces, Metrics, Logs)"]
+    end
+```
+
+#### Why Evaluate Before Deployment?
+- **Speed & Inner-Loop Agility**: Runs locally in seconds without building container images or deploying cloud infrastructure.
+- **Cost & Quota Efficiency**: Uses your active model credentials without incurring cloud provisioning, container registry storage, or runner costs.
+- **Rapid Regression Detection**: Immediately catches prompt wording issues, tool parameter schema errors, or rubric regressions before code is committed.
+
+#### Why Evaluate After Deployment?
+- **Real Runtime Environment**: Evaluates the actual production container running in Google Cloud rather than local simulation.
+- **Live Authentication & IAM**: Validates that Cloud IAM roles, service accounts, and Secret Manager access (`NPS_API_KEY`) resolve properly under load.
+- **Production Latency & Reliability**: Tests actual cloud networking, streaming stability (`:streamQuery` / `/run_sse`), and cold-start characteristics.
+- **Auditable Quality Flywheel**: Creates persistent evaluation runs recorded in the Google Cloud Console for enterprise governance, auditing, and continuous improvement.
+
+---
+
+### ☁️ Post-Deployment Evaluation & Verification
+
+Once your agent is deployed to **Gemini Enterprise Agent Runtime** (`deployment_metadata.json` is generated), run post-deployment evaluations and verify the deployment in Google Cloud.
+
+#### 1. Submit Managed Evaluation to Gemini Enterprise Eval Service
+Run evaluation directly against the live deployed Agent Runtime in Google Cloud using the managed Eval Service in Gemini Enterprise. The Eval Service requires a Google Cloud Storage (`gs://`) destination bucket to stage evaluation datasets and store grading artifacts:
+
+```bash
+# 1. Retrieve the deployed Agent Runtime resource ID from deployment_metadata.json
+RESOURCE_NAME=$(python3 -c "import json; print(json.load(open('deployment_metadata.json'))['remote_agent_runtime_id'])")
+
+# 2. Identify or create a GCS bucket for staging evaluation outputs
+# Check existing buckets:
+# gcloud storage buckets list --project <your-project-id>
+# Or create a dedicated one in your deployment region (e.g., us-central1 or us-east1):
+# gcloud storage buckets create gs://<your-gcs-bucket> --location=<your-region> --project=<your-project-id>
+EVAL_BUCKET="gs://<your-gcs-bucket>/eval"
+
+# 3. Submit evaluation job to the Eval Service in Gemini Enterprise
+# Ensure --region matches your deployed Agent Runtime region (e.g., us-central1, us-east1)
+agents-cli eval submit \
+  --dataset tests/eval/datasets/basic-dataset.json \
+  --resource-name "$RESOURCE_NAME" \
+  --dest "$EVAL_BUCKET" \
+  --project "<your-project-id>" \
+  --region "<your-region>"
+```
+
+To fetch and inspect the results once the cloud evaluation job completes:
+
+```bash
+# Fetch and inspect results (ensure --region matches the evaluation run region)
+agents-cli eval results \
+  --run-id "<run-resource-name>" \
+  --project "<your-project-id>" \
+  --region "<your-region>"
+```
+
+#### 2. Run CLI Evaluation Against the Live Cloud Endpoint
+You can also run your local evaluation command pointing directly to the deployed Agent Runtime HTTP endpoint:
+
+```bash
+# Run eval suite against the live cloud instance
+agents-cli eval run \
+  --url "https://<your-region>-aiplatform.googleapis.com/reasoningEngines/v1/${RESOURCE_NAME}/api" \
+  --app-name campseeker
+```
+
+---
+
+### 🔍 What to Check in Gemini Enterprise / Google Cloud Console
+
+When reviewing your deployed agent in the Google Cloud Console, check the following key surfaces:
+
+| Console Surface | Where to Find It | What to Inspect |
+| :--- | :--- | :--- |
+| **Agent Runtime** | **Gemini Enterprise** ➔ **Agent Runtime** *(or Vertex AI ➔ Reasoning Engines)* | • **Overview**: Verify deployment state is Active and engine spec matches `campseeker`.<br>• **Playground**: Test live queries interactively in the browser UI.<br>• **Logs**: Inspect `reasoning_engine_stdout` and `reasoning_engine_stderr` for startup warnings, session creation, and tool dispatch. |
+| **Agent Evaluation** | **Gemini Enterprise** ➔ **Agent Evaluation** *(or Vertex AI ➔ Model Evaluation)* | • **Evaluation Runs**: View historical and current evaluation experiments.<br>• **Metrics Dashboard**: Review radar charts, `valid_trip_plan_rate`, and `custom_response_quality` distributions.<br>• **Trajectory Analysis**: Compare user prompts, tool call chains, final responses, and LLM-as-judge rationales side-by-side. |
+| **Cloud Trace** | **Operations** ➔ **Cloud Trace** | • **End-to-End Spans**: Trace requests from initial user input through LLM inference down to each individual NPS tool call (`search_parks`, `get_campgrounds`, `get_alerts`).<br>• **Latency Analysis**: Identify performance bottlenecks between API queries and model generation.<br>• **Grounding Verification**: Inspect tool payloads to ensure evidence was passed accurately without hallucination. |
+| **Secret Manager** | **Security** ➔ **Secret Manager** | • Verify `NPS_API_KEY` exists and has the appropriate IAM accessor binding for the agent's runtime service account. |
+| **Agent Registry** | **Gemini Enterprise** ➔ **Agent Registry** | • If published via `agents-cli publish gemini`, verify the Agent Card metadata, name, description, and discoverability in multi-agent routing. |
+
+---
+
+### 📚 Further Documentation & Resources
+
+- 📖 **[Gemini Enterprise Agent Runtime Overview](https://cloud.google.com/vertex-ai/docs/reasoning-engine/overview)**: Architecture, runtime contract, and deployment concepts.
+- 🎯 **[Gemini Enterprise Agent Evaluation Service](https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-overview)**: Managed LLM-as-judge evaluation, dataset schemas, and evaluation metrics.
+- 🛠️ **[Google Agent Development Kit (ADK) Documentation](https://adk.dev/)**: Building agents, function tools, sessions, and runners.
+- 📦 **[Google Agents CLI (`agents-cli`) Guide](https://cloud.google.com/products/agent-builder)**: CLI commands for scaffolding, local playgrounds, evaluations, and deployments.
+- 🌐 **[A2A (Agent-to-Agent) Protocol Specification](https://a2a-protocol.org/)**: Open standard for multi-agent interoperability and Agent Cards.
+- 📈 **[Cloud Trace for Gen AI & Agents](https://cloud.google.com/trace/docs)**: Distributed tracing and observability for LLM reasoning loops.
+- 🌲 **[National Park Service Developer Portal](https://www.nps.gov/subjects/developer/get-started.htm)**: NPS API reference, endpoints, query parameters, and data dictionaries.
 
 ---
 
@@ -226,7 +399,7 @@ uv run python -m campseeker.fast_api_app
 ```
 
 - **FastAPI Endpoints**: Open API documentation is available at `http://localhost:8000/docs`.
-- **A2A Endpoint**: Accessible under `/a2a/app`. Use the [A2A Inspector](https://github.com/a2aproject/a2a-inspector) to test interoperability with other autonomous agents.
+- **A2A Endpoint**: Accessible under `/a2a/campseeker`. Use the [A2A Inspector](https://github.com/a2aproject/a2a-inspector) to test interoperability with other autonomous agents.
 
 ---
 

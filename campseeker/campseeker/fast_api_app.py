@@ -24,6 +24,9 @@ from google.adk.runners import Runner
 
 from campseeker.app_utils import services
 from campseeker.app_utils.a2a import attach_a2a_routes
+from campseeker.app_utils.reasoning_engine_adapter import (
+    attach_reasoning_engine_routes,
+)
 
 load_dotenv()
 allow_origins = (
@@ -68,6 +71,7 @@ app: FastAPI = get_fast_api_app(
 )
 app.title = "campseeker"
 app.description = "API for interacting with the Agent campseeker"
+attach_reasoning_engine_routes(app)
 
 
 # Main execution

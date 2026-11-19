@@ -1,4 +1,9 @@
 {
-  "remote_agent_runtime_id": null,
-  "deployment_timestamp": null
+  "remote_agent_runtime_id": "projects/786365316782/locations/us-east1/reasoningEngines/8688207841778991104",
+  "deployment_timestamp": "2026-11-19T12:16:28.200322+00:00",
+  "deployment_target": "agent_runtime",
+  "is_a2a": true,
+  "language": "python",
+  "agent_directory": "campseeker",
+  "app_name": "campseeker"
 }

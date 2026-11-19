@@ -1,0 +1,237 @@
+{
+  "eval_case_results": [
+    {
+      "eval_case_index": 0,
+      "response_candidate_results": [
+        {
+          "response_index": 0,
+          "metric_results": {
+            "final_response_quality_v1": {
+              "metric_name": "final_response_quality_v1",
+              "score": 1.0,
+              "explanation": null,
+              "rubric_verdicts": [
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "The final answer provides information regarding any active closures in Acadia National Park, or states that there is no information on active closures."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The agent successfully identified two park closures from the `get_alerts` tool response. The final answer accurately details both closures, including relevant dates, impacted areas, and workarounds/impacts, which is consistent with the trusted evidence."
+                },
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "The final answer provides information regarding any active hazard advisories in Acadia National Park, or states that there is no information on active hazard advisories."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The agent correctly retrieved all available alerts. Since the tool response did not contain any alerts categorized as \"Hazard Advisory\", the final answer implicitly conveys that there are no such advisories by only listing park closures."
+                }
+              ],
+              "raw_output": null,
+              "error_message": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "eval_case_index": 1,
+      "response_candidate_results": [
+        {
+          "response_index": 0,
+          "metric_results": {
+            "final_response_quality_v1": {
+              "metric_name": "final_response_quality_v1",
+              "score": 1.0,
+              "explanation": null,
+              "rubric_verdicts": [
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "The final answer either confirms that a reservation for a tent site at Blackwoods Campground for tomorrow night has been successfully made, or states that the reservation could not be completed."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The final answer clearly states that the reservation could not be completed, which is consistent with the agent's capabilities as implied by the tool response and explicitly stated in the final answer."
+                },
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "If the final answer states that the reservation could not be completed, it provides a reason for the failure (e.g., no sites were available, or more information is needed from the user)."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The final answer provides clear reasons for the inability to complete the reservation, both due to the agent's inherent limitations and the fact that the campground is closed for the season, which is directly supported by the tool output."
+                }
+              ],
+              "raw_output": null,
+              "error_message": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "eval_case_index": 2,
+      "response_candidate_results": [
+        {
+          "response_index": 0,
+          "metric_results": {
+            "final_response_quality_v1": {
+              "metric_name": "final_response_quality_v1",
+              "score": 1.0,
+              "explanation": null,
+              "rubric_verdicts": [
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "If the final answer recommends a campground, the recommended campground must meet all of the following criteria: it is located inside Acadia National Park, it has a heated indoor swimming pool, and it has individual sewer hookups at tent-only sites."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The condition for this property (that the final answer recommends a campground) was not met. Therefore, the property is not applicable."
+                },
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "If the final answer states that no campground meets all the specified criteria, this statement must be factually correct."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The final answer states that there are no campgrounds inside Acadia National Park that feature a heated indoor swimming pool or individual sewer hookups at tent-only sites. The trusted evidence from the `get_campgrounds` tool call confirms that none of the four campgrounds within Acadia National Park offer a heated indoor swimming pool. Furthermore, none of the campgrounds offer individual sewer hookups at any site, including tent-only sites. Therefore, the agent's statement is factually correct based on the provided data."
+                }
+              ],
+              "raw_output": null,
+              "error_message": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "eval_case_index": 3,
+      "response_candidate_results": [
+        {
+          "response_index": 0,
+          "metric_results": {
+            "final_response_quality_v1": {
+              "metric_name": "final_response_quality_v1",
+              "score": 0.6666667,
+              "explanation": null,
+              "rubric_verdicts": [
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "All campgrounds identified in the answer are located in Acadia National Park."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The final answer correctly identifies campgrounds that are all located within Acadia National Park, as verified by the `parkCode` in the tool response."
+                },
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "All campgrounds identified in the answer have on-site showers."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": false,
+                  "reasoning": "The evidence clearly indicates that none of the campgrounds identified in the answer have on-site showers, as their `showers` amenity is listed as \"None\". Therefore, the property is not fulfilled."
+                },
+                {
+                  "evaluated_rubric": {
+                    "rubric_id": null,
+                    "content": {
+                      "property": {
+                        "description": "If no campgrounds in Acadia National Park have on-site showers, the final answer must state this."
+                      }
+                    },
+                    "type": "",
+                    "importance": "HIGH"
+                  },
+                  "verdict": true,
+                  "reasoning": "The evidence from the tool call confirms that no campgrounds in Acadia National Park have on-site showers. The final answer explicitly states this fact, which is consistent with the evidence."
+                }
+              ],
+              "raw_output": null,
+              "error_message": null
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "summary_metrics": [
+    {
+      "metric_name": "final_response_quality_v1",
+      "num_cases_total": null,
+      "num_cases_valid": null,
+      "num_cases_error": null,
+      "mean_score": 0.9166666716337204,
+      "stdev_score": 0.14433755869421702,
+      "pass_rate": null
+    }
+  ],
+  "win_rates": null,
+  "evaluation_dataset": [
+    {
+      "bigquery_source": null,
+      "gcs_source": null,
+      "eval_cases": null,
+      "eval_dataset_df": null,
+      "candidate_name": "candidate-1"
+    }
+  ],
+  "metadata": {
+    "candidate_names": [
+      "candidate-1"
+    ],
+    "dataset_name": null,
+    "dataset_id": null,
+    "creation_timestamp": null,
+    "dataset": []
+  },
+  "agent_info": null
+}
