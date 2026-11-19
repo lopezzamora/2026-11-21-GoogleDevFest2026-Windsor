@@ -255,7 +255,7 @@ flowchart LR
     S5 -.->|Rerun same suite| S3
 ```
 
-> 💡 **Note for DevFest Attendees:** In the presentation slides (Slides 8, 11, 13, 20), Sandra illustrates evaluation concepts using the underlying Python SDK calls (`client.evals.run_inference`, `client.evals.evaluate`, and `client.optimizer.optimize`). The `agents-cli eval` suite automatically wraps and orchestrates these exact primitives under the hood (`eval generate` handles inference and trace capture, and `eval grade` executes metric scoring).
+> 💡 **Note for DevFest Attendees:** The presentation slides (Slides 8, 11, 13, 20),  illustrate evaluation concepts using the underlying Python SDK calls (`client.evals.run_inference`, `client.evals.evaluate`, and `client.optimizer.optimize`). The `agents-cli eval` suite automatically wraps and orchestrates these exact primitives under the hood (`eval generate` handles inference and trace capture, and `eval grade` executes metric scoring).
 
 <a id="eval-prerequisites"></a>
 #### Prerequisites for Running Evals
@@ -356,7 +356,7 @@ valid_trip_plan_rate     1.00          >= 1.00           100%
 custom_response_quality  5.00          >= 4.00           100%
 ```
 
-> ⚠️ **Key Takeaway from Sandra's Talk:** *"Six tested cases—not proof of production readiness. Aggregate scores do not establish per-case rationale or tool-trace correctness."* Always inspect the case-by-case execution traces before trusting aggregate scores.
+> ⚠️ **Key Takeaway:** *"Six tested cases—not proof of production readiness. Aggregate scores do not establish per-case rationale or tool-trace correctness."* Always inspect the case-by-case execution traces before trusting aggregate scores.
 
 ---
 
