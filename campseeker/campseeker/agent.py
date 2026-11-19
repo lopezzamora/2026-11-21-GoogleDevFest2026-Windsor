@@ -18,5 +18,5 @@ root_agent = Agent(
 
 app = App(
     root_agent=root_agent,
-    name="app",
+    name="campseeker",
 )

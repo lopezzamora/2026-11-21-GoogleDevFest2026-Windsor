@@ -208,3 +208,64 @@ class TestAgentDefinition:
         assert "search_parks" in instruction
         assert "get_campgrounds" in instruction
         assert "read-only" in instruction or "do not book" in instruction
+
+
+class TestEvalDatasetAndMetrics:
+    """Test evaluation dataset and custom metrics alignment with presentation slides."""
+
+    def test_basic_dataset_cases_align_with_slides(self):
+        import json
+        from pathlib import Path
+
+        dataset_path = Path(__file__).resolve().parents[1] / "eval" / "datasets" / "basic-dataset.json"
+        assert dataset_path.exists()
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        case_ids = {c["eval_case_id"] for c in data["eval_cases"]}
+        # Slide 10: One trip-constraint case + four grounding checks
+        expected_cases = {
+            "trip_constraint_maine_acadia_showers",
+            "grounding_amenity_present",
+            "grounding_amenity_missing",
+            "grounding_no_supported_match",
+            "grounding_availability_asked",
+        }
+        assert expected_cases.issubset(case_ids)
+
+        for case in data["eval_cases"]:
+            assert "eval_case_id" in case
+            assert "prompt" in case
+            assert "reference" in case
+
+    def test_eval_config_metrics(self):
+        import yaml
+        from pathlib import Path
+
+        config_path = Path(__file__).resolve().parents[1] / "eval" / "eval_config.yaml"
+        assert config_path.exists()
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+
+        assert "valid_trip_plan_rate" in cfg["metrics_to_run"]
+        assert "custom_response_quality" in cfg["metrics_to_run"]
+        assert cfg["thresholds"]["valid_trip_plan_rate"] == 1.0
+
+    @patch("tests.eval.valid_trip_plan_rate._client")
+    def test_valid_trip_plan_rate_evaluate(self, mock_client_func):
+        from tests.eval.valid_trip_plan_rate import evaluate, _Verdict
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.parsed = _Verdict(score=1, verdict="PASS", explanation="Honors constraints and grounding.")
+        mock_client.models.generate_content.return_value = mock_response
+        mock_client_func.return_value = mock_client
+
+        res = evaluate({
+            "prompt": "Acadia with showers",
+            "response": "No campgrounds in Acadia offer verified on-site showers.",
+            "reference": "Accurately reports no on-site showers.",
+        })
+        assert res["score"] == 1
+        assert "PASS" in res["explanation"]
+

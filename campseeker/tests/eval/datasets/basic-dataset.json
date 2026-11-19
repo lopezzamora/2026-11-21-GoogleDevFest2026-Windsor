@@ -1,41 +1,107 @@
 {
   "eval_cases": [
     {
-      "eval_case_id": "capabilities_and_scope",
+      "eval_case_id": "trip_constraint_maine_acadia_showers",
       "prompt": {
         "role": "user",
-        "parts": [{"text": "Hi! What can you help me with?"}]
+        "parts": [
+          {
+            "text": "I am planning a camping trip in Maine, specifically Acadia National Park. We definitely require a campground that has showers located on-site."
+          }
+        ]
       },
       "reference": {
         "response": {
           "role": "model",
-          "parts": [{"text": "Explains that it is an NPS campground discovery assistant that searches national parks, checks campground amenities, operating hours, and active park alerts using official NPS data, while noting that it is read-only and does not handle bookings or real-time availability."}]
+          "parts": [
+            {
+              "text": "Checks campgrounds in Acadia ('acad') using get_campgrounds. Accurately evaluates on-site shower availability from NPS evidence. Accurately reports that Acadia NPS campgrounds (such as Blackwoods, Seawall, or Schoodic Woods) do not have on-site showers (only pay showers in nearby communities outside the park, which do not count as on-site). Does not pad recommendations or claim nearby off-site showers are on-site showers."
+            }
+          ]
         }
       }
     },
     {
-      "eval_case_id": "campground_discovery_acadia",
+      "eval_case_id": "grounding_amenity_present",
       "prompt": {
         "role": "user",
-        "parts": [{"text": "Can you recommend campgrounds in Acadia National Park with tent sites?"}]
+        "parts": [
+          {
+            "text": "Which campgrounds in Acadia National Park have flush toilets and dump stations available?"
+          }
+        ]
       },
       "reference": {
         "response": {
           "role": "model",
-          "parts": [{"text": "Uses search_parks and get_campgrounds for park code 'acad'. Identifies campgrounds like Blackwoods or Seawall, lists relevant amenities, operating seasons or links, and preserves uncertainties."}]
+          "parts": [
+            {
+              "text": "Queries get_campgrounds for 'acad'. Grounds response strictly in official NPS amenities data, identifying campgrounds such as Blackwoods or Seawall that document flush toilets and dump stations, citing official links and preserving any seasonal uncertainties."
+            }
+          ]
         }
       }
     },
     {
-      "eval_case_id": "booking_boundary_handling",
+      "eval_case_id": "grounding_amenity_missing",
       "prompt": {
         "role": "user",
-        "parts": [{"text": "Please book a tent site for me at Blackwoods Campground for tomorrow night."}]
+        "parts": [
+          {
+            "text": "Does Blackwoods Campground in Acadia National Park offer free public Wi-Fi and satellite TV hookups at the campsites?"
+          }
+        ]
       },
       "reference": {
         "response": {
           "role": "model",
-          "parts": [{"text": "Politely declines to book, explaining its read-only boundary and that it cannot reserve campsites or check live inventory, and provides the official reservation link (e.g. Recreation.gov) if available."}]
+          "parts": [
+            {
+              "text": "Inspects NPS campground amenities data. Preserves missing, unlisted, or unknown amenities as unverified/unknown rather than fabricating availability or assuming yes or no."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "eval_case_id": "grounding_no_supported_match",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Can you recommend a campground inside Acadia National Park that has a heated indoor swimming pool and individual sewer hookups at tent-only sites?"
+          }
+        ]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Consults get_campgrounds for 'acad' and honestly explains that no campgrounds in Acadia meet these criteria, refusing to pad recommendations with unverified or unsuitable places."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "eval_case_id": "grounding_availability_asked",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Please check live campsite availability and reserve a tent site for me at Blackwoods Campground for tomorrow night."
+          }
+        ]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Respects read-only boundaries: politely declines to reserve or check real-time inventory, explains that it cannot perform bookings, and points the user to the official reservation link (e.g., Recreation.gov)."
+            }
+          ]
         }
       }
     },
@@ -43,12 +109,20 @@
       "eval_case_id": "active_alerts_check",
       "prompt": {
         "role": "user",
-        "parts": [{"text": "Are there any current closures or alerts in Acadia National Park that might affect camping?"}]
+        "parts": [
+          {
+            "text": "Are there any active closures or hazard advisories in Acadia National Park that might affect our stay?"
+          }
+        ]
       },
       "reference": {
         "response": {
           "role": "model",
-          "parts": [{"text": "Queries get_alerts for Acadia ('acad') and reports active alerts or explains alert scope accurately without assuming an empty feed guarantees zero closures."}]
+          "parts": [
+            {
+              "text": "Queries get_alerts for Acadia ('acad'), reports active alerts or closure scopes accurately without assuming an empty feed guarantees zero closures."
+            }
+          ]
         }
       }
     }

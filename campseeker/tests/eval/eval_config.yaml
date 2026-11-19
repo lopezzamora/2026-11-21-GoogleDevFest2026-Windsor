@@ -1,16 +1,23 @@
 metrics_to_run:
+  - valid_trip_plan_rate
   - custom_response_quality
 
-# Fail `agents-cli eval run` (exit 1) when a metric's mean score drops below
-# its threshold. Set it once you know the bar this agent must meet.
-# thresholds:
-#   custom_response_quality: 4  # the judge scores 1-5
+# Thresholds set for the evaluation runner:
+# valid_trip_plan_rate target from Slide 9 is 1.0 (100% of cases pass)
+# custom_response_quality target is 4.0 (1-5 scale)
+thresholds:
+  valid_trip_plan_rate: 1.0
+  custom_response_quality: 4.0
 
 custom_metrics:
-  # Default: local LLM-as-judge (see response_quality.py). Runs in-process via
-  # google-genai on Gemini platform (ADC) or Google AI Studio (GEMINI_API_KEY).
+  # Slide 9 metric: CampSeeker Valid Trip Plan Rate (binary 1/0 scoring constraints and grounding)
+  - name: valid_trip_plan_rate
+    custom_function_file: valid_trip_plan_rate.py
+
+  # Rubric-based judge scoring 1-5 (grounding, boundaries, uncertainty)
   - name: custom_response_quality
     custom_function_file: response_quality.py
+
   - name: agent_turn_count
     custom_function: |
       def evaluate(instance):

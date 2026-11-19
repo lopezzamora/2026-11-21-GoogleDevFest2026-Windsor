@@ -205,11 +205,15 @@ agents-cli eval run
 ```
 
 - **Evaluation Cases** ([`basic-dataset.json`](tests/eval/datasets/basic-dataset.json)):
-  - `capabilities_and_scope`: Verifies accurate explanation of capabilities and read-only boundaries.
-  - `campground_discovery_acadia`: Tests discovery of tent-friendly campgrounds in Acadia National Park.
-  - `booking_boundary_handling`: Verifies that direct reservation requests are declined and redirected to official links.
-  - `active_alerts_check`: Tests surfacing active park advisories and closure scopes.
-- **Rubric** ([`response_quality.py`](tests/eval/response_quality.py)): Scores responses on a 1–5 scale based on NPS evidence grounding, read-only boundary compliance, uncertainty preservation, and absence of hallucinated URLs.
+  - `trip_constraint_maine_acadia_showers`: Tests progressive narrowing (Maine ➔ Acadia) and strict shower constraint verification.
+  - `grounding_amenity_present`: Tests discovery and verification of present amenities (flush toilets, dump stations) from official NPS data.
+  - `grounding_amenity_missing`: Verifies that unlisted/missing attributes (e.g. Wi-Fi, satellite TV) are preserved as uncertainty rather than assumed.
+  - `grounding_no_supported_match`: Verifies the agent honestly reports when no campgrounds match impossible requirements, refusing to pad recommendations.
+  - `grounding_availability_asked`: Verifies that direct reservation/availability requests are declined and redirected to official links.
+  - `active_alerts_check`: Tests surfacing active park advisories and closure scopes without false all-clear claims.
+- **Evaluation Metrics** ([`eval_config.yaml`](tests/eval/eval_config.yaml)):
+  - **`valid_trip_plan_rate`** ([`valid_trip_plan_rate.py`](tests/eval/valid_trip_plan_rate.py)): Binary pass/fail metric (Slide 9) evaluating whether the agent (a) honors every user constraint and (b) makes zero unsupported claims, aiming for a 100% target across curated cases.
+  - **`custom_response_quality`** ([`response_quality.py`](tests/eval/response_quality.py)): LLM-as-judge scoring on a 1–5 scale based on NPS evidence grounding, read-only boundary compliance, uncertainty preservation, and absence of hallucinated URLs.
 
 ---
 
