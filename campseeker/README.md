@@ -21,12 +21,14 @@ Prepared by **[Sandra Lopez-Zamora](https://www.linkedin.com/in/slopezza/)** ([P
 - [🧪 Testing and Evaluation](#testing-and-evaluation)
   - [Unit Tests](#unit-tests)
   - [Integration Tests](#integration-tests)
-  - [Agent Evaluation (LLM-as-Judge)](#agent-evaluation-llm-as-judge)
-    - [1. Prerequisites for Running Evals](#eval-prerequisites)
-    - [2. Run the Evaluation Suite](#run-eval-suite)
-    - [3. Inspecting Evaluation Results](#inspecting-eval-results)
-    - [4. Advanced Evaluation Commands](#advanced-eval-commands)
-    - [5. Evaluation Dataset Coverage](#eval-dataset-coverage)
+  - [Agent Evaluation: The 5-Step Loop (LLM-as-Judge)](#agent-evaluation-llm-as-judge)
+    - [Prerequisites for Running Evals](#eval-prerequisites)
+    - [Step 1: Define Success (Metrics & Criteria)](#step-1-define-success)
+    - [Step 2: Build Benchmark Cases (Evaluation Dataset)](#step-2-build-cases)
+    - [Step 3: Run & Capture Observable Traces](#step-3-run-traces)
+    - [Step 4: Score & Inspect Results (HTML Reports)](#step-4-score-results)
+    - [Step 5: Diagnose, Improve & Rerun ("No Failure, No Fix")](#step-5-improve-rerun)
+    - [Advanced Evaluation Commands](#advanced-eval-commands)
   - [🚀 Pre-Deployment vs. Post-Deployment Evaluation](#pre-vs-post-deployment-evaluation)
   - [☁️ Post-Deployment Evaluation & Verification](#post-deployment-evaluation)
     - [1. Submit Managed Evaluation to Eval Service](#submit-cloud-eval)
@@ -240,12 +242,23 @@ uv run pytest tests/integration
 ```
 
 <a id="agent-evaluation-llm-as-judge"></a>
-### Agent Evaluation (LLM-as-Judge)
+### Agent Evaluation: The 5-Step Loop (LLM-as-Judge)
 
-CampSeeker includes custom evaluation datasets and automated LLM-as-judge quality metrics in [`tests/eval/`](tests/eval/) to evaluate grounding, constraints, and read-only boundaries.
+In accordance with the DevFest evaluation framework, CampSeeker uses a structured **5-step evaluation loop** to test agent behavior against observable tool traces and LLM-as-judge rubrics before deploying to users:
+
+```mermaid
+flowchart LR
+    S1["1. Define Success\n(Metrics & Rubrics)"] --> S2["2. Build Cases\n(basic-dataset.json)"]
+    S2 --> S3["3. Run & Trace\n(eval generate)"]
+    S3 --> S4["4. Score & Diagnose\n(eval grade & report)"]
+    S4 --> S5["5. Improve & Rerun\n(No failure, no fix)"]
+    S5 -.->|Rerun same suite| S3
+```
+
+> 💡 **Note for DevFest Attendees:** In the presentation slides (Slides 8, 11, 13, 20), Sandra illustrates evaluation concepts using the underlying Python SDK calls (`client.evals.run_inference`, `client.evals.evaluate`, and `client.optimizer.optimize`). The `agents-cli eval` suite automatically wraps and orchestrates these exact primitives under the hood (`eval generate` handles inference and trace capture, and `eval grade` executes metric scoring).
 
 <a id="eval-prerequisites"></a>
-#### 1. Prerequisites for Running Evals
+#### Prerequisites for Running Evals
 
 1. **Install or update `agents-cli` (v1.15.0+)**:
    ```bash
@@ -258,7 +271,7 @@ CampSeeker includes custom evaluation datasets and automated LLM-as-judge qualit
    uv sync
    ```
 3. **Environment setup (`.env`)**:
-   Ensure `.env` contains your NPS API key and Gemini model credentials (either GCP project with ADC or `GEMINI_API_KEY`):
+   Ensure `.env` contains your NPS API key and Gemini model credentials (either GCP project with ADC or `GEMINI_API_KEY` for Google AI Studio):
    ```dotenv
    GOOGLE_GENAI_USE_ENTERPRISE=true
    GOOGLE_CLOUD_PROJECT=your-gcp-project-id
@@ -267,70 +280,127 @@ CampSeeker includes custom evaluation datasets and automated LLM-as-judge qualit
    NPS_API_KEY=your-nps-api-key
    ```
 
-<a id="run-eval-suite"></a>
-#### 2. Run the Evaluation Suite
+---
 
-Run the full evaluation workflow (inferencing all test cases + LLM-as-judge grading):
+<a id="step-1-define-success"></a>
+#### Step 1: Define Success (Metrics & Criteria)
+
+Rather than judging an agent based solely on persuasive final text, success is defined by strict observable criteria in [`tests/eval/eval_config.yaml`](tests/eval/eval_config.yaml):
+
+1. **`valid_trip_plan_rate`** ([`valid_trip_plan_rate.py`](tests/eval/valid_trip_plan_rate.py)) *(Slide 9)*:
+   - **Formula**: `passing cases ÷ total evaluated cases × 100`
+   - **Binary Criteria (1 or 0)**:
+     - **(a)** Honors every stated user constraint (destination, dates, tent/RV, shower/toilet requirements).
+     - **(b)** Makes zero unsupported claims. Missing or unlisted attributes must be labeled unknown/unverified. Strictly respects read-only boundaries (does not claim to reserve or guarantee live vacancy) and never hallucinates URLs.
+   - **Demo Target**: **100% pass rate** across core curated benchmark cases.
+2. **`custom_response_quality`** ([`response_quality.py`](tests/eval/response_quality.py)):
+   - A 1–5 rubric judging evidence grounding in NPS data, read-only boundary enforcement, uncertainty preservation, and absence of fabricated links (threshold ≥ 4.0).
+
+---
+
+<a id="step-2-build-cases"></a>
+#### Step 2: Build Benchmark Cases (Evaluation Dataset)
+
+Evaluation requires fixed, repeatable scenarios so any code or prompt changes can be measured objectively. The curated dataset in [`tests/eval/datasets/basic-dataset.json`](tests/eval/datasets/basic-dataset.json) directly codifies the benchmark cases from the presentation (Slides 9–10):
+
+| Case ID | Scenario / Focus | Expected Evidence & Behavior |
+| :--- | :--- | :--- |
+| `trip_constraint_maine_acadia_showers` | **Constraint Narrowing** (Maine ➔ Acadia ➔ Showers) | Queries `get_campgrounds` for `acad`. Correctly notes that in-park NPS campgrounds (Blackwoods, Seawall, Schoodic Woods) do not have on-site showers; refuses to falsely claim nearby private town showers are on-site. |
+| `grounding_amenity_present` | **Verified Amenities** | Verifies flush toilets and dump stations directly from official NPS API attributes without inventing extra amenities. |
+| `grounding_amenity_missing` | **Uncertainty Preservation** | When asked about unlisted amenities (free public Wi-Fi, satellite TV), preserves them as unknown/unverified rather than assuming yes or no. |
+| `grounding_no_supported_match` | **Refusal & Honest Boundaries** | Refuses to pad recommendations or fabricate campgrounds when impossible criteria (heated indoor pool) are requested. |
+| `grounding_availability_asked` | **Read-Only Boundary** | Refuses booking requests or live vacancy guarantees; redirects user to official `reservationUrl`s (e.g. Recreation.gov). |
+| `active_alerts_check` | **Advisories & Safety** | Checks `get_alerts` for `acad` and surfaces real alerts without making false park-wide "all-clear" safety guarantees. |
+
+---
+
+<a id="step-3-run-traces"></a>
+#### Step 3: Run & Capture Observable Traces
+
+As emphasized in the DevFest talk (Slides 6 & 11), **a plausible final answer alone cannot distinguish grounded behavior from a lucky guess**. Step 3 executes the agent and records the full observable execution trajectory:
 
 ```bash
+# Execute evaluation (runs inference over basic-dataset.json and grades results)
 agents-cli eval run
 ```
 
-What happens under the hood:
+Under the hood, this executes two phases:
 1. **Inference Phase (`eval generate`)**:
-   - Automatically boots a local ADK FastAPI server on a loopback port (e.g. `http://127.0.0.1:18080`) under `app_name=campseeker`.
+   - Boots a local ADK FastAPI server on a loopback port (e.g. `http://127.0.0.1:18080`) under `app_name=campseeker`.
    - Sends each prompt from [`tests/eval/datasets/basic-dataset.json`](tests/eval/datasets/basic-dataset.json) to the agent over `/run_sse`.
-   - Records all streamed agent messages and NPS tool-execution traces to `artifacts/traces/traces_<timestamp>.json`.
+   - Records the complete trajectory (user prompt, tool call arguments, NPS API payloads returned, and model responses) to `artifacts/traces/traces_<timestamp>.json`.
 2. **Grading Phase (`eval grade`)**:
-   - Evaluates the traces against the judge rubrics in [`tests/eval/eval_config.yaml`](tests/eval/eval_config.yaml).
-   - Generates score summaries in the terminal, a structured JSON file, and an interactive HTML report.
+   - Dispatches LLM-as-judge evaluators to score the recorded traces against the rubrics in [`tests/eval/eval_config.yaml`](tests/eval/eval_config.yaml).
 
-<a id="inspecting-eval-results"></a>
-#### 3. Inspecting Evaluation Results
+---
 
-After `eval run` completes, open the interactive HTML report in your browser to inspect turn-by-turn tool calls, agent responses, and judge rationales:
+<a id="step-4-score-results"></a>
+#### Step 4: Score & Inspect Results (HTML Reports)
+
+Once grading completes, inspect the per-case verdicts, judge rationales, and full tool traces in the generated interactive HTML report:
 
 ```bash
-# Open the latest HTML report (macOS)
+# Open the latest HTML evaluation report (macOS)
 open $(ls -t artifacts/grade_results/results_*.html | head -n 1)
 
 # Or on Linux:
 # xdg-open $(ls -t artifacts/grade_results/results_*.html | head -n 1)
 ```
 
-The report details:
-- **Case-by-case breakdown**: Each test scenario, prompt, tool execution trajectory, and final answer.
-- **Judge rationales**: Explanations for why each score was awarded.
-- **Metrics summary**:
-  - **`valid_trip_plan_rate`** ([`valid_trip_plan_rate.py`](tests/eval/valid_trip_plan_rate.py)): Binary pass/fail metric (Slide 9) verifying that the agent (a) honors all user constraints and (b) makes zero unsupported claims, targeting 100% across core cases.
-  - **`custom_response_quality`** ([`response_quality.py`](tests/eval/response_quality.py)): 1–5 rubric judging evidence grounding in NPS data, read-only boundary compliance, uncertainty preservation, and absence of fabricated links.
+##### Presentation Target Verification (Slide 12)
+In the DevFest walkthrough run, all 6 test cases achieve a 100% pass rate:
+```text
+Metric                   Mean score    Pass threshold    Pass rate
+-----------------------  ------------  ----------------  -----------
+valid_trip_plan_rate     1.00          >= 1.00           100%
+custom_response_quality  5.00          >= 4.00           100%
+```
+
+> ⚠️ **Key Takeaway from Sandra's Talk:** *"Six tested cases—not proof of production readiness. Aggregate scores do not establish per-case rationale or tool-trace correctness."* Always inspect the case-by-case execution traces before trusting aggregate scores.
+
+---
+
+<a id="step-5-improve-rerun"></a>
+#### Step 5: Diagnose, Improve & Rerun ("No Failure, No Fix")
+
+Slides 13 & 14 lay down the cardinal rule of agent engineering: **"No failure, no fix."** Never modify prompts or tool definitions on a hunch; iterate only from verified evaluation failures:
+
+1. **Diagnose**: When a case scores `0` on `valid_trip_plan_rate` or `< 4.0` on `custom_response_quality`, inspect its trace in the HTML report. Determine the root cause:
+   - *Did the tool return incomplete data?*
+   - *Did the agent call the wrong tool or pass invalid arguments?*
+   - *Did the prompt instructions fail to enforce a boundary?*
+2. **Targeted Edit**: Apply a single, targeted modification to [`campseeker/instructions.py`](campseeker/instructions.py) or [`campseeker/tools.py`](campseeker/tools.py).
+3. **Rerun & Compare**: Rerun the **identical** evaluation suite and compare the results to guarantee the fix worked without causing regressions:
+
+```bash
+# 1. Re-run evaluation with the targeted change
+agents-cli eval run
+
+# 2. Compare the previous run with the candidate run
+agents-cli eval compare artifacts/grade_results/results_run1.json artifacts/grade_results/results_run2.json
+```
+
+---
 
 <a id="advanced-eval-commands"></a>
-#### 4. Advanced Evaluation Commands
+#### Advanced Evaluation Commands
 
-- **Run inference only** (saves traces without grading):
+- **Run inference only** (capture traces without grading):
   ```bash
   agents-cli eval generate
   ```
-- **Re-grade existing traces** (offline without re-running the agent):
+- **Re-grade existing traces** (re-score offline without re-running the agent):
   ```bash
   agents-cli eval grade --traces artifacts/traces/traces_<timestamp>.json
   ```
-- **Compare two evaluation runs** (verify improvements or detect regressions after prompt fixes):
+- **Analyze failure clusters**:
   ```bash
-  agents-cli eval compare artifacts/grade_results/results_run1.json artifacts/grade_results/results_run2.json
+  agents-cli eval analyze artifacts/grade_results/results_<timestamp>.json
   ```
-
-<a id="eval-dataset-coverage"></a>
-#### 5. Evaluation Dataset Coverage ([`basic-dataset.json`](tests/eval/datasets/basic-dataset.json))
-
-The evaluation dataset codifies the presentation benchmark cases (DevFest Slides 9–10):
-- `trip_constraint_maine_acadia_showers`: Progressive constraint narrowing (Maine ➔ Acadia) with strict verification of campground-level showers.
-- `grounding_amenity_present`: Verification of verified facilities (flush toilets, dump stations) sourced directly from NPS API attributes.
-- `grounding_amenity_missing`: Preserving unlisted attributes (e.g. Wi-Fi, satellite TV) as unknown/unverified rather than assuming.
-- `grounding_no_supported_match`: Refusing to pad or invent options when requirements cannot be met by any campground.
-- `grounding_availability_asked`: Enforcing read-only boundaries on booking requests and redirecting to official `reservationUrl`s.
-- `active_alerts_check`: Surfacing park advisories without making false park-wide "all-clear" safety guarantees.
+- **Compare two evaluation runs** (regression checking):
+  ```bash
+  agents-cli eval compare artifacts/grade_results/results_baseline.json artifacts/grade_results/results_candidate.json
+  ```
 
 ---
 
