@@ -6,6 +6,41 @@ Prepared by **[Sandra Lopez-Zamora](https://www.linkedin.com/in/slopezza/)** ([P
 
 ---
 
+## 📑 Table of Contents
+
+- [🌟 Overview](#overview)
+- [🧰 Core Tools & Architecture](#core-tools-architecture)
+- [📁 Project Structure](#project-structure)
+- [📋 Requirements](#requirements)
+- [🚀 Quick Start](#quick-start)
+  - [1. Install Dependencies](#install-dependencies)
+  - [2. Configure Environment Variables](#configure-environment-variables)
+  - [3. Launch Development Playground](#launch-development-playground)
+- [🛠️ Available Tools](#available-tools)
+- [💬 Example Queries to Try](#example-queries)
+- [🧪 Testing and Evaluation](#testing-and-evaluation)
+  - [Unit Tests](#unit-tests)
+  - [Integration Tests](#integration-tests)
+  - [Agent Evaluation (LLM-as-Judge)](#agent-evaluation-llm-as-judge)
+    - [1. Prerequisites for Running Evals](#eval-prerequisites)
+    - [2. Run the Evaluation Suite](#run-eval-suite)
+    - [3. Inspecting Evaluation Results](#inspecting-eval-results)
+    - [4. Advanced Evaluation Commands](#advanced-eval-commands)
+    - [5. Evaluation Dataset Coverage](#eval-dataset-coverage)
+  - [🚀 Pre-Deployment vs. Post-Deployment Evaluation](#pre-vs-post-deployment-evaluation)
+  - [☁️ Post-Deployment Evaluation & Verification](#post-deployment-evaluation)
+    - [1. Submit Managed Evaluation to Eval Service](#submit-cloud-eval)
+    - [2. Run CLI Evaluation Against Live Cloud Endpoint](#live-endpoint-eval)
+    - [3. Set Up Continuous Online Monitoring](#online-monitoring)
+  - [🔍 What to Check in Gemini Enterprise / Google Cloud Console](#console-inspection)
+  - [📚 Further Documentation & Resources](#documentation-resources)
+- [🌐 FastAPI & A2A Protocol](#fastapi-a2a-protocol)
+- [🚢 Deployment & CI/CD](#deployment-cicd)
+- [📊 Observability](#observability)
+
+---
+
+<a id="overview"></a>
 ## 🌟 Overview
 
 **CampSeeker** helps campers discover, evaluate, and compare US National Park campgrounds based strictly on verified NPS data. Rather than hallucinating amenities or dates, CampSeeker adheres to strict grounding principles:
@@ -22,7 +57,8 @@ Prepared by **[Sandra Lopez-Zamora](https://www.linkedin.com/in/slopezza/)** ([P
 
 ---
 
-## 🧰 Core Tools & Architecture 
+<a id="core-tools-architecture"></a>
+## 🧰 Core Tools & Architecture
 
 If you are new to Google's agent development ecosystem, here is a quick overview of the key technologies and frameworks used throughout this project:
 
@@ -41,6 +77,7 @@ If you are new to Google's agent development ecosystem, here is a quick overview
 
 ---
 
+<a id="project-structure"></a>
 ## 📁 Project Structure
 
 ```text
@@ -71,6 +108,7 @@ campseeker/
 
 ---
 
+<a id="requirements"></a>
 ## 📋 Requirements
 
 - **Python**: `>= 3.11, < 3.14`
@@ -83,8 +121,10 @@ campseeker/
 
 ---
 
+<a id="quick-start"></a>
 ## 🚀 Quick Start
 
+<a id="install-dependencies"></a>
 ### 1. Install Dependencies
 
 Install `agents-cli` and project dependencies using `uv`:
@@ -99,6 +139,7 @@ agents-cli install
 uv sync
 ```
 
+<a id="configure-environment-variables"></a>
 ### 2. Configure Environment Variables
 
 Copy `.env.example` to `.env` and fill in your keys:
@@ -127,6 +168,7 @@ NPS_TIMEOUT_SECONDS=15
 
 > 🔑 Get a free NPS API key at [nps.gov/subjects/developer/get-started.htm](https://www.nps.gov/subjects/developer/get-started.htm).
 
+<a id="launch-development-playground"></a>
 ### 3. Launch Development Playground
 
 Start the interactive ADK playground with hot reload:
@@ -145,6 +187,7 @@ Open [http://localhost:8000](http://localhost:8000) (or the port indicated in te
 
 ---
 
+<a id="available-tools"></a>
 ## 🛠️ Available Tools
 
 CampSeeker equips the model with three specialized functions defined in [`campseeker/tools.py`](campseeker/tools.py):
@@ -157,6 +200,7 @@ CampSeeker equips the model with three specialized functions defined in [`campse
 
 ---
 
+<a id="example-queries"></a>
 ## 💬 Example Queries to Try
 
 - *"Find campgrounds in Acadia National Park for next September with flush toilets and tent sites."*
@@ -167,8 +211,10 @@ CampSeeker equips the model with three specialized functions defined in [`campse
 
 ---
 
+<a id="testing-and-evaluation"></a>
 ## 🧪 Testing and Evaluation
 
+<a id="unit-tests"></a>
 ### Unit Tests
 
 Unit tests run completely offline without needing live external networks or API credentials, utilizing transport injection for the NPS client:
@@ -183,6 +229,7 @@ Coverage includes:
 - **Tools**: Field filtering and keyword argument propagation for `search_parks`, `get_campgrounds`, and `get_alerts`.
 - **Agent Definition**: Verification of root agent name, tools registration, and grounded instructions.
 
+<a id="integration-tests"></a>
 ### Integration Tests
 
 Integration tests verify live ADK streaming responses and full server end-to-end execution:
@@ -192,10 +239,12 @@ Integration tests verify live ADK streaming responses and full server end-to-end
 uv run pytest tests/integration
 ```
 
+<a id="agent-evaluation-llm-as-judge"></a>
 ### Agent Evaluation (LLM-as-Judge)
 
 CampSeeker includes custom evaluation datasets and automated LLM-as-judge quality metrics in [`tests/eval/`](tests/eval/) to evaluate grounding, constraints, and read-only boundaries.
 
+<a id="eval-prerequisites"></a>
 #### 1. Prerequisites for Running Evals
 
 1. **Install or update `agents-cli` (v1.15.0+)**:
@@ -218,6 +267,7 @@ CampSeeker includes custom evaluation datasets and automated LLM-as-judge qualit
    NPS_API_KEY=your-nps-api-key
    ```
 
+<a id="run-eval-suite"></a>
 #### 2. Run the Evaluation Suite
 
 Run the full evaluation workflow (inferencing all test cases + LLM-as-judge grading):
@@ -235,6 +285,7 @@ What happens under the hood:
    - Evaluates the traces against the judge rubrics in [`tests/eval/eval_config.yaml`](tests/eval/eval_config.yaml).
    - Generates score summaries in the terminal, a structured JSON file, and an interactive HTML report.
 
+<a id="inspecting-eval-results"></a>
 #### 3. Inspecting Evaluation Results
 
 After `eval run` completes, open the interactive HTML report in your browser to inspect turn-by-turn tool calls, agent responses, and judge rationales:
@@ -254,6 +305,7 @@ The report details:
   - **`valid_trip_plan_rate`** ([`valid_trip_plan_rate.py`](tests/eval/valid_trip_plan_rate.py)): Binary pass/fail metric (Slide 9) verifying that the agent (a) honors all user constraints and (b) makes zero unsupported claims, targeting 100% across core cases.
   - **`custom_response_quality`** ([`response_quality.py`](tests/eval/response_quality.py)): 1–5 rubric judging evidence grounding in NPS data, read-only boundary compliance, uncertainty preservation, and absence of fabricated links.
 
+<a id="advanced-eval-commands"></a>
 #### 4. Advanced Evaluation Commands
 
 - **Run inference only** (saves traces without grading):
@@ -269,6 +321,7 @@ The report details:
   agents-cli eval compare artifacts/grade_results/results_run1.json artifacts/grade_results/results_run2.json
   ```
 
+<a id="eval-dataset-coverage"></a>
 #### 5. Evaluation Dataset Coverage ([`basic-dataset.json`](tests/eval/datasets/basic-dataset.json))
 
 The evaluation dataset codifies the presentation benchmark cases (DevFest Slides 9–10):
@@ -281,6 +334,7 @@ The evaluation dataset codifies the presentation benchmark cases (DevFest Slides
 
 ---
 
+<a id="pre-vs-post-deployment-evaluation"></a>
 ### 🚀 Pre-Deployment vs. Post-Deployment Evaluation
 
 In production agent engineering, evaluation is not a one-time check. You evaluate both **before** and **after** deployment:
@@ -295,9 +349,11 @@ flowchart LR
     subgraph Deploy["Deployment Phase"]
         L3 -- Yes --> D1["agents-cli deploy (Gemini Enterprise Agent Runtime)"]
     end
-    subgraph Post["Post-Deployment (Cloud Verification)"]
-        D1 --> P1["Cloud Evaluation (agents-cli eval submit)"]
-        P1 --> P2["Cloud Console Inspection (Traces, Metrics, Logs)"]
+    subgraph Post["Post-Deployment (Cloud Verification & Observability)"]
+        D1 --> P1["Batch Cloud Evaluation (agents-cli eval submit)"]
+        D1 --> P2["Online Monitoring (Continuous Real-Time Scoring)"]
+        P1 --> P3["Cloud Console (Metrics, Traces, Dashboard)"]
+        P2 --> P3
     end
 ```
 
@@ -314,10 +370,12 @@ flowchart LR
 
 ---
 
+<a id="post-deployment-evaluation"></a>
 ### ☁️ Post-Deployment Evaluation & Verification
 
 Once your agent is deployed to **Gemini Enterprise Agent Runtime** (`deployment_metadata.json` is generated), run post-deployment evaluations and verify the deployment in Google Cloud.
 
+<a id="submit-cloud-eval"></a>
 #### 1. Submit Managed Evaluation to Gemini Enterprise Eval Service
 Run evaluation directly against the live deployed Agent Runtime in Google Cloud using the managed Eval Service in Gemini Enterprise. The Eval Service requires a Google Cloud Storage (`gs://`) destination bucket to stage evaluation datasets and store grading artifacts:
 
@@ -352,6 +410,7 @@ agents-cli eval results \
   --region "<your-region>"
 ```
 
+<a id="live-endpoint-eval"></a>
 #### 2. Run CLI Evaluation Against the Live Cloud Endpoint
 You can also run your local evaluation command pointing directly to the deployed Agent Runtime HTTP endpoint:
 
@@ -362,8 +421,79 @@ agents-cli eval run \
   --app-name campseeker
 ```
 
+<a id="online-monitoring"></a>
+#### 3. Set Up Continuous Online Monitoring (Real-Time Quality Guardrails)
+
+While batch evaluations validate curated test suites prior to deployment, **Online Monitoring** continuously observes live user traffic in production, runs automated LLM judges against incoming traces, and plots quality trends on real-time dashboards.
+
+##### Initial State: Understanding the Dashboard
+When you navigate to **Agent Runtime** ➔ your deployed agent (`campseeker`) ➔ **Dashboard** ➔ **Evaluation** for the first time, you will see empty widgets displaying:
+> *"No online monitor configured, or no matching traces or sessions found to evaluate."*
+
+This is expected because no automated evaluation pipeline is actively attached to incoming traces yet. Follow the steps below to configure the monitor and seed it with live data.
+
 ---
 
+##### Step A: Create the Online Monitor in Google Cloud Console
+1. In the agent's console page, click the top **Evaluation** tab (or click **Manage online monitors** from the Dashboard).
+2. Under the **Online monitors** section, click **`+ New monitor`**.
+3. **Step 1 — Filter traces**:
+   - **Monitor Name**: Enter an identifier, e.g. `campseeker-production-quality`.
+   - **Region**: Select `<your-region>` (must match your deployed agent's region, e.g. `us-east1` or `us-central1`).
+   - **Evaluation Target**: Choose **Traces** (evaluates each individual user interaction/turn immediately, ideal for real-time monitoring and live demos) rather than *Sessions* (which waits for an entire multi-turn conversation to close/timeout).
+   - **Filter Criteria**: Select **All traces** (or configure custom trace filters if desired).
+4. **Step 2 — Evaluation metric**:
+   - Ensure the standard platform quality metrics are selected:
+     - **Final Response Quality**: Evaluates clarity, coherence, and user intent fulfillment.
+     - **Tool Use Quality**: Validates that NPS tools are invoked correctly with valid park codes and parameters.
+     - **Hallucination**: Verifies that park amenities, fees, and rules are strictly grounded in NPS API tool outputs.
+     - **Safety**: Enforces safety policies and read-only boundary adherence.
+   
+5. **Step 3 — Sampling and schedule**:
+   - Set **Sampling rate** to `100%` (recommended for development, testing, and live demos) or `5%–10%` for high-volume production.
+   - Click **Set up** to activate the pipeline. The monitor is now active and listening for traces.
+
+---
+
+##### Step B: Seed Live Data & Populate Dashboard 
+
+To generate live execution traces and populate the evaluation dashboard graphs, you can use the **Interactive Console Playground**:
+
+1. **Open the Cloud Playground**:
+   - In your agent's service page in the Google Cloud Console, click the **Playground** tab in the top navigation bar.
+2. **Execute Representative Test Queries**:
+   Send 3–4 prompts covering different agent capabilities and guardrails:
+   - **Discovery & Amenity Filtering**:
+     > *"Find campgrounds in Acadia National Park for next summer that have flush toilets and tent sites."*
+   - **Park Advisories & Hazard Check**:
+     > *"Are there any active closures or hazard alerts affecting campgrounds in Great Smoky Mountains?"*
+   - **Read-Only Boundary Enforcement**:
+     > *"Can you book a reservation for me at Blackwoods campground for July 15?"*
+   - **Comparative Evaluation**:
+     > *"Compare Blackwoods and Seawall campgrounds in Acadia regarding shower availability, RV hookups, and fees."*
+3. **Observe Live Execution**:
+   - Confirm the agent streams the response and calls the appropriate NPS API tools (`search_parks`, `get_campgrounds`, `get_alerts`).
+   - Each interaction emits OpenTelemetry spans to Cloud Trace under your agent resource.
+
+##### Step C: Verify Real-Time Dashboard & Traces
+1. **Allow Ingestion Buffer**:
+   - The automated evaluation pipeline evaluates incoming traces asynchronously using Gemini LLM judges.
+   - Allow **2 to 5 minutes** for the evaluator to process the traces and write metrics to the monitoring backend.
+2. **Inspect the Dashboard**:
+   - Navigate to **Dashboard ➔ Evaluation**.
+   - Set the time range filter in the top-right corner to **Last 1 hour** (or your local timezone).
+   - Verify that the four time-series widgets transition from empty to active score charts:
+     - 📈 **Response quality (average)**
+     - 🛡️ **Safety (average)**
+     - 🔍 **Hallucination (average)**
+     - ⚙️ **Tool use quality (average)**
+3. **Deep-Dive in Traces**:
+   - Switch to the **Traces** tab to inspect individual execution trees.
+   - Click into any trace to view the exact user prompt, tool input/output JSON payloads, latency per span, and the automated LLM judge rationales for each metric.
+
+---
+
+<a id="console-inspection"></a>
 ### 🔍 What to Check in Gemini Enterprise / Google Cloud Console
 
 When reviewing your deployed agent in the Google Cloud Console, check the following key surfaces:
@@ -371,18 +501,19 @@ When reviewing your deployed agent in the Google Cloud Console, check the follow
 | Console Surface | Where to Find It | What to Inspect |
 | :--- | :--- | :--- |
 | **Agent Runtime** | **Gemini Enterprise** ➔ **Agent Runtime** *(or Vertex AI ➔ Reasoning Engines)* | • **Overview**: Verify deployment state is Active and engine spec matches `campseeker`.<br>• **Playground**: Test live queries interactively in the browser UI.<br>• **Logs**: Inspect `reasoning_engine_stdout` and `reasoning_engine_stderr` for startup warnings, session creation, and tool dispatch. |
-| **Agent Evaluation** | **Gemini Enterprise** ➔ **Agent Evaluation** *(or Vertex AI ➔ Model Evaluation)* | • **Evaluation Runs**: View historical and current evaluation experiments.<br>• **Metrics Dashboard**: Review radar charts, `valid_trip_plan_rate`, and `custom_response_quality` distributions.<br>• **Trajectory Analysis**: Compare user prompts, tool call chains, final responses, and LLM-as-judge rationales side-by-side. |
-| **Cloud Trace** | **Operations** ➔ **Cloud Trace** | • **End-to-End Spans**: Trace requests from initial user input through LLM inference down to each individual NPS tool call (`search_parks`, `get_campgrounds`, `get_alerts`).<br>• **Latency Analysis**: Identify performance bottlenecks between API queries and model generation.<br>• **Grounding Verification**: Inspect tool payloads to ensure evidence was passed accurately without hallucination. |
+| **Online Monitoring Dashboard** | **Agent Runtime** ➔ `campseeker` ➔ **Dashboard** ➔ **Evaluation** | • **Live Time Series**: Monitor real-time moving averages for Response Quality, Tool Use Quality, Hallucination, and Safety.<br>• **Alerts**: Inspect automated notifications if quality scores dip below operational thresholds. |
+| **Agent Evaluation** | **Gemini Enterprise** ➔ **Agent Evaluation** *(or Vertex AI ➔ Model Evaluation)* | • **Evaluation Runs**: View historical and current batch evaluation experiments.<br>• **Metrics Dashboard**: Review radar charts, `valid_trip_plan_rate`, and `custom_response_quality` distributions.<br>• **Trajectory Analysis**: Compare user prompts, tool call chains, final responses, and LLM-as-judge rationales side-by-side. |
+| **Cloud Trace** | **Operations** ➔ **Cloud Trace** *(or Agent Runtime ➔ Traces)* | • **End-to-End Spans**: Trace requests from initial user input through LLM inference down to each individual NPS tool call (`search_parks`, `get_campgrounds`, `get_alerts`).<br>• **Latency Analysis**: Identify performance bottlenecks between API queries and model generation.<br>• **Grounding Verification**: Inspect tool payloads to ensure evidence was passed accurately without hallucination. |
 | **Secret Manager** | **Security** ➔ **Secret Manager** | • Verify `NPS_API_KEY` exists and has the appropriate IAM accessor binding for the agent's runtime service account. |
 | **Agent Registry** | **Gemini Enterprise** ➔ **Agent Registry** | • If published via `agents-cli publish gemini`, verify the Agent Card metadata, name, description, and discoverability in multi-agent routing. |
 
 ---
 
+<a id="documentation-resources"></a>
 ### 📚 Further Documentation & Resources
 
-- 📖 **[Gemini Enterprise Agent Runtime Overview](https://cloud.google.com/vertex-ai/docs/reasoning-engine/overview)**: Architecture, runtime contract, and deployment concepts.
-- 🎯 **[Gemini Enterprise Agent Evaluation Service](https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-overview)**: Managed LLM-as-judge evaluation, dataset schemas, and evaluation metrics.
 - 🛠️ **[Google Agent Development Kit (ADK) Documentation](https://adk.dev/)**: Building agents, function tools, sessions, and runners.
+- 🎯 **[Gemini Enterprise Agent Evaluation Service](https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-overview)**: Managed LLM-as-judge evaluation, dataset schemas, and evaluation metrics.
 - 📦 **[Google Agents CLI (`agents-cli`) Guide](https://cloud.google.com/products/agent-builder)**: CLI commands for scaffolding, local playgrounds, evaluations, and deployments.
 - 🌐 **[A2A (Agent-to-Agent) Protocol Specification](https://a2a-protocol.org/)**: Open standard for multi-agent interoperability and Agent Cards.
 - 📈 **[Cloud Trace for Gen AI & Agents](https://cloud.google.com/trace/docs)**: Distributed tracing and observability for LLM reasoning loops.
@@ -390,6 +521,7 @@ When reviewing your deployed agent in the Google Cloud Console, check the follow
 
 ---
 
+<a id="fastapi-a2a-protocol"></a>
 ## 🌐 FastAPI & A2A Protocol
 
 CampSeeker includes a production-ready FastAPI app with [A2A (Agent-to-Agent)](https://a2a-protocol.org/) support:
@@ -403,6 +535,7 @@ uv run python -m campseeker.fast_api_app
 
 ---
 
+<a id="deployment-cicd"></a>
 ## 🚢 Deployment & CI/CD
 
 Deploy to Google Cloud using `agents-cli`:
@@ -421,6 +554,7 @@ agents-cli infra cicd
 
 ---
 
+<a id="observability"></a>
 ## 📊 Observability
 
 CampSeeker is pre-configured with OpenTelemetry exporters supporting:
